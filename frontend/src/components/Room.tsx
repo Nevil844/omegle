@@ -30,7 +30,7 @@ export const Room = ({
   const localVideoRef = useRef<HTMLVideoElement>();
 
   useEffect(() => {
-    var socket = io();
+    var socket = io(URL);
     socket.on("send-offer", async ({ roomId }) => {
       console.log("sending offer");
       setLobby(false);

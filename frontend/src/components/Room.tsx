@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Socket, io } from "socket.io-client";
 
-const URL = "http://localhost:3000"|| "https://omegle-1.onrender.com/" || "https://omegle-ten.vercel.app/";
+const URL = "http://localhost:3000"|| "https://omegle-1.onrender.com/" || "https://omegle-ten.vercel.app/" || "omegle-fit6mfzz7-nevil844.vercel.app";
 
 export const Room = ({
   name,

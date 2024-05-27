@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Socket, io } from "socket.io-client";
 
-const URL = "https://omegle-po2g.onrender.com";
+const URL = "http://ec2-3-25-124-36.ap-southeast-2.compute.amazonaws.com:3000";
 // const URL = "http://localhost:3000";
 
 export const Room = ({

@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Socket, io } from "socket.io-client";
 
-const URL = "http://ec2-3-25-124-36.ap-southeast-2.compute.amazonaws.com:3000";
-// const URL = "http://localhost:3000";
+// const URL = "http://ec2-3-25-124-36.ap-southeast-2.compute.amazonaws.com:3000";
+const URL = "http://localhost:3000";
 
 export const Room = ({
   name,
@@ -14,41 +14,38 @@ export const Room = ({
   localAudioTrack: MediaStreamTrack | null;
   localVideoTrack: MediaStreamTrack | null;
 }) => {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
   const [lobby, setLobby] = useState(true);
   const [socket, setSocket] = useState<null | Socket>(null);
   const [sendingPc, setSendingPc] = useState<null | RTCPeerConnection>(null);
-  const [receivingPc, setReceivingPc] = useState<null | RTCPeerConnection>(
-    null
-  );
-  const [remoteVideoTrack, setRemoteVideoTrack] =
-    useState<MediaStreamTrack | null>(null);
-  const [remoteAudioTrack, setRemoteAudioTrack] =
-    useState<MediaStreamTrack | null>(null);
-  const [remoteMediaStream, setRemoteMediaStream] =
-    useState<MediaStream | null>(null);
+  const [receivingPc, setReceivingPc] = useState<null | RTCPeerConnection>(null);
+  const [remoteVideoTrack, setRemoteVideoTrack] = useState<MediaStreamTrack | null>(null);
+  const [remoteAudioTrack, setRemoteAudioTrack] = useState<MediaStreamTrack | null>(null);
+  const [remoteMediaStream, setRemoteMediaStream] = useState<MediaStream | null>(null);
+  const [messages, setMessages] = useState<Array<{ sender: string; text: string }>>([]);
+  const [message, setMessage] = useState("");
+  const [roomId, setRoomId] = useState<string | null>(null);
+
   const remoteVideoRef = useRef<HTMLVideoElement>();
   const localVideoRef = useRef<HTMLVideoElement>();
 
-  const [messages, setMessages] = useState<Array<{ sender: string; text: string }>>([]);
-  const [message, setMessage] = useState("");
-
   useEffect(() => {
-    var socket = io(URL);
+    const socket = io(URL);
 
     socket.on("send-offer", async ({ roomId }) => {
       console.log("sending offer");
       setLobby(false);
+      setRoomId(roomId);
       const pc = new RTCPeerConnection();
 
       setSendingPc(pc);
       if (localVideoTrack) {
-        console.error("added tack");
+        console.error("added track");
         console.log(localVideoTrack);
         pc.addTrack(localVideoTrack);
       }
       if (localAudioTrack) {
-        console.error("added tack");
+        console.error("added track");
         console.log(localAudioTrack);
         pc.addTrack(localAudioTrack);
       }
@@ -65,9 +62,8 @@ export const Room = ({
       };
 
       pc.onnegotiationneeded = async () => {
-        console.log("on negotiation neeeded, sending offer");
+        console.log("on negotiation needed, sending offer");
         const sdp = await pc.createOffer();
-        //@ts-ignore
         pc.setLocalDescription(sdp);
         socket.emit("offer", {
           sdp,
@@ -79,6 +75,7 @@ export const Room = ({
     socket.on("offer", async ({ roomId, sdp: remoteSdp }) => {
       console.log("received offer");
       setLobby(false);
+      setRoomId(roomId);
       const pc = new RTCPeerConnection();
 
       const stream = new MediaStream();
@@ -86,31 +83,22 @@ export const Room = ({
         remoteVideoRef.current.srcObject = stream;
       }
       setRemoteMediaStream(stream);
-      // trickle ice
       setReceivingPc(pc);
-      window.pcr = pc;
+
       pc.ontrack = (e) => {
-        // alert("ontrack");
         console.error("inside ontrack");
         const { track, type } = e;
-        if (type == "audio") {
+        if (type === "audio") {
           setRemoteAudioTrack(track);
-          // @ts-ignore
           remoteVideoRef.current.srcObject.addTrack(track);
         } else {
           setRemoteVideoTrack(track);
-          // @ts-ignore
           remoteVideoRef.current.srcObject.addTrack(track);
         }
-        //@ts-ignore
         remoteVideoRef.current.play();
       };
 
       pc.onicecandidate = async (e) => {
-        if (!e.candidate) {
-          return;
-        }
-        console.log("omn ice candidate on receiving seide");
         if (e.candidate) {
           socket.emit("add-ice-candidate", {
             candidate: e.candidate,
@@ -122,17 +110,17 @@ export const Room = ({
 
       await pc.setRemoteDescription(remoteSdp);
       const sdp = await pc.createAnswer();
-      //@ts-ignore
       await pc.setLocalDescription(sdp);
 
       socket.emit("answer", {
         roomId,
-        sdp: sdp,
+        sdp,
       });
     });
 
     socket.on("answer", ({ roomId, sdp: remoteSdp }) => {
       setLobby(false);
+      setRoomId(roomId);
       setSendingPc((pc) => {
         pc?.setRemoteDescription(remoteSdp);
         return pc;
@@ -145,50 +133,36 @@ export const Room = ({
     });
 
     socket.on("add-ice-candidate", ({ candidate, type }) => {
-      console.log("add ice candidate from remote");
-      console.log({ candidate, type });
-      if (type == "sender") {
+      if (type === "sender") {
         setReceivingPc((pc) => {
-          if (!pc) {
-            console.error("receicng pc nout found");
-          } else {
-            console.error(pc.ontrack);
-          }
           pc?.addIceCandidate(candidate);
           return pc;
         });
       } else {
         setSendingPc((pc) => {
-          if (!pc) {
-            console.error("sending pc nout found");
-          } else {
-            // console.error(pc.ontrack)
-          }
           pc?.addIceCandidate(candidate);
           return pc;
         });
       }
     });
 
-    socket.on("message", ({ sender, text }) => {
-      setMessages((messages) => [...messages, { sender, text }]);
+    socket.on("chat-message", ({ sender, message }) => {
+      setMessages((messages) => [...messages, { sender, text: message }]);
     });
 
     setSocket(socket);
-  }, [name]);
+  }, [name, localAudioTrack, localVideoTrack]);
 
   useEffect(() => {
-    if (localVideoRef.current) {
-      if (localVideoTrack) {
-        localVideoRef.current.srcObject = new MediaStream([localVideoTrack]);
-        localVideoRef.current.play();
-      }
+    if (localVideoRef.current && localVideoTrack) {
+      localVideoRef.current.srcObject = new MediaStream([localVideoTrack]);
+      localVideoRef.current.play();
     }
-  }, [localVideoRef]);
+  }, [localVideoTrack]);
 
   const sendMessage = () => {
-    if (message.trim() && socket) {
-      socket.emit("message", { sender: name, text: message });
+    if (message.trim() && socket && roomId) {
+      socket.emit("chat-message", { message, roomId });
       setMessages([...messages, { sender: name, text: message }]);
       setMessage("");
     }
@@ -200,6 +174,7 @@ export const Room = ({
       setLobby(true);
       setMessages([]);
       setMessage("");
+      setRoomId(null);
     }
   };
 
@@ -216,9 +191,9 @@ export const Room = ({
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             className="h-5 w-5 mr-1 inline-block"
           >
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>

@@ -7,10 +7,19 @@ import { UserManager } from "./managers/UserManger";
 
 const app = express();
 const server = createServer(app);
+const cors = require('cors');
+
+app.use(cors({
+  origin: '*', // Allow requests from this origin
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true, // If you need to send cookies or authentication
+}));
 
 const io = new Server(server, {
   cors: {
-    origin: "*"
+    origin: "*",
+    methods: ['GET', 'POST'],
+    credentials: true
   }
 });
 

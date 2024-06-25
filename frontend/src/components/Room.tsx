@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { Socket, io } from "socket.io-client";
 
-// const URL = "http://ec2-3-25-124-36.ap-southeast-2.compute.amazonaws.com:3000";
-const URL = "http://localhost:3000";
+const URL = "http://neviltech.xyz";
+// const URL = "http://localhost:3000";
 
 export const Room = ({
   name,
